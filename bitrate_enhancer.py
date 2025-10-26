@@ -18,7 +18,7 @@ def enhancer(audio_file, audio_path):
     if not os.path.exists(ffmpeg_exe):
         raise FileNotFoundError(f"FFmpeg not found at {ffmpeg_exe}. Please place ffmpeg.exe in the /ffmpeg folder.")
     
-    command = f'"{ffmpeg_exe}" -i "{audio_file}" -b:a 192K -vn "{audio_path}"'
+    command = f'"{ffmpeg_exe}" -i "{audio_file}" -c:a libmp3lame -b:a 320K -vn "{audio_path}"'
     subprocess.run(command, shell=True)
 
     if os.path.exists(audio_file):

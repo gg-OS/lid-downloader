@@ -3,6 +3,8 @@ import threading
 import time
 from pathlib import Path
 import os
+import random
+from pytubefix import YouTube
 from downloader import yt_downloader
 from playlist_catcher import playlist_lister
 from bitrate_enhancer import enhancer
@@ -70,14 +72,34 @@ class SingleDownloadFrame(ctk.CTkFrame):
         self.url_entry = ctk.CTkEntry(self, width=400, placeholder_text="https://youtube.com/watch?v=...")
         self.url_entry.pack(pady=5)
         
-        # Download button
+        # Check URL button
+        self.check_btn = ctk.CTkButton(
+            self,
+            text="Check URL",
+            height=40,
+            command=self.check_url
+        )
+        self.check_btn.pack(pady=10)
+        
+        # Video title display
+        self.title_label = ctk.CTkLabel(self, text="Video Title:")
+        self.title_textbox = ctk.CTkTextbox(self, width=400, height=60)
+        
+        # Download button (initially hidden)
         self.download_btn = ctk.CTkButton(
             self,
             text="Start Download",
             height=40,
             command=self.start_download
         )
-        self.download_btn.pack(pady=20)
+        
+        # Download another button (initially hidden)
+        self.download_another_btn = ctk.CTkButton(
+            self,
+            text="Download Another Song",
+            height=40,
+            command=self.reset_form
+        )
         
         # Progress bar
         self.progress = ctk.CTkProgressBar(self, width=400)
@@ -85,31 +107,75 @@ class SingleDownloadFrame(ctk.CTkFrame):
         self.progress.set(0)
         
         # Status label
-        self.status_label = ctk.CTkLabel(self, text="Ready to download")
+        self.status_label = ctk.CTkLabel(self, text="Enter a YouTube URL and click Check URL")
         self.status_label.pack(pady=10)
         
         # Return button
         return_btn = ctk.CTkButton(
             self,
             text="Return to Main Menu",
-            command=self.return_callback
+            command=self.return_to_menu
         )
         return_btn.pack(pady=20)
     
-    def start_download(self):
-        if self.is_downloading:
-            return
-            
+    def reset_form(self):
+        """Reset form for another download"""
+        self.url_entry.delete(0, "end")
+        self.title_textbox.delete("0.0", "end")
+        self.title_label.pack_forget()
+        self.title_textbox.pack_forget()
+        self.download_btn.pack_forget()
+        self.download_another_btn.pack_forget()
+        self.progress.set(0)
+        self.status_label.configure(text="Enter a YouTube URL and click Check URL")
+        self.download_btn.configure(state="normal")
+        self.is_downloading = False
+    
+    def return_to_menu(self):
+        """Return to main menu and reset form"""
+        self.reset_form()
+        self.return_callback()
+    
+    def check_url(self):
+        """Validate YouTube URL and show video title"""
         url = self.url_entry.get().strip()
         if not url:
             self.status_label.configure(text="Please enter a YouTube URL")
             return
         
+        try:
+            self.status_label.configure(text="Checking URL...")
+            yt = YouTube(url)
+            video_title = yt.title
+            
+            # Show video title
+            self.title_label.pack(pady=(10, 5))
+            self.title_textbox.pack(pady=5)
+            self.title_textbox.delete("0.0", "end")
+            self.title_textbox.insert("0.0", video_title)
+            
+            # Show download button
+            self.download_btn.pack(pady=10)
+            
+            self.status_label.configure(text="✅ Valid YouTube URL! Ready to download.")
+            
+        except Exception as e:
+            self.status_label.configure(text=f"❌ Invalid URL or video unavailable: {str(e)}")
+            # Hide title and download button
+            self.title_label.pack_forget()
+            self.title_textbox.pack_forget()
+            self.download_btn.pack_forget()
+    
+    def start_download(self):
+        if self.is_downloading:
+            return
+        
         self.is_downloading = True
         self.download_btn.configure(state="disabled")
+        self.check_btn.configure(state="disabled")
         self.progress.set(0)
         
-        # Start download simulation in background thread
+        # Start download in background thread
         thread = threading.Thread(target=self.simulate_download)
         thread.daemon = True
         thread.start()
@@ -142,12 +208,16 @@ class SingleDownloadFrame(ctk.CTkFrame):
             self.progress.set(1.0)
             self.status_label.configure(text=f"✅ Download complete! The file was saved in {self.music_folder}.")
             
+            # Show download another button
+            self.download_btn.pack_forget()
+            self.download_another_btn.pack(pady=10)
+            
         except Exception as e:
             self.status_label.configure(text=f"❌ Error: {str(e)}")
             self.progress.set(0)
         
         finally:
-            self.download_btn.configure(state="normal")
+            self.check_btn.configure(state="normal")
             self.is_downloading = False
 
 class PlaylistDownloadFrame(ctk.CTkFrame):
@@ -212,7 +282,7 @@ class PlaylistDownloadFrame(ctk.CTkFrame):
         return_btn.pack(pady=20)
     
     def list_playlist(self):
-        """Actually list playlist items"""
+        """Actually list playlist items with titles"""
         url = self.url_entry.get().strip()
         if not url:
             self.playlist_text.delete("0.0", "end")
@@ -223,10 +293,18 @@ class PlaylistDownloadFrame(ctk.CTkFrame):
             self.status_label.configure(text="Loading playlist...")
             self.playlist_urls = playlist_lister(url)
             
-            # Display playlist items
-            playlist_display = "\n".join([f"{i+1}. {url}" for i, url in enumerate(self.playlist_urls)])
+            # Get video titles
+            playlist_display = []
+            for i, video_url in enumerate(self.playlist_urls):
+                try:
+                    yt = YouTube(video_url)
+                    title = yt.title
+                    playlist_display.append(f"{i+1}. {title}")
+                except:
+                    playlist_display.append(f"{i+1}. {video_url}")
+            
             self.playlist_text.delete("0.0", "end")
-            self.playlist_text.insert("0.0", playlist_display)
+            self.playlist_text.insert("0.0", "\n".join(playlist_display))
             self.status_label.configure(text=f"Playlist loaded ({len(self.playlist_urls)} items)")
             
         except Exception as e:
@@ -253,7 +331,7 @@ class PlaylistDownloadFrame(ctk.CTkFrame):
         thread.start()
     
     def simulate_playlist_download(self):
-        """Actually download playlist"""
+        """Actually download playlist with delays"""
         if not hasattr(self, 'playlist_urls') or not self.playlist_urls:
             self.status_label.configure(text="Please list playlist items first")
             self.download_btn.configure(state="normal")
@@ -275,6 +353,12 @@ class PlaylistDownloadFrame(ctk.CTkFrame):
                 # Update progress
                 progress = (i + 1) / total_songs
                 self.progress.set(progress)
+                
+                # Add delay between downloads (except for last item)
+                if i < total_songs - 1:
+                    delay = random.randint(5, 10)
+                    self.status_label.configure(text=f"Waiting {delay}s before next download...")
+                    time.sleep(delay)
             
             # Complete
             self.status_label.configure(text=f"✅ All songs downloaded! Files saved in {self.music_folder}.")
