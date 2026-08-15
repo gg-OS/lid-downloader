@@ -6,9 +6,31 @@ A portable desktop application for downloading YouTube audio in high quality wit
 
 - **Single Song Download**: Download individual YouTube videos as high-quality audio
 - **Playlist Download**: Download entire YouTube playlists with anti-bot detection delays
-- **Audio Enhancement**: Automatic bitrate improvement using FFmpeg
+- **Audio Enhancement**: Automatic bitrate improvement to 320kbps using FFmpeg
 - **Portable**: No external dependencies required when properly configured
 - **Modern GUI**: Clean, dark-themed interface built with CustomTkinter
+- **Folder Selection**: Choose custom download location
+- **Settings Persistence**: Remembers your preferences
+
+## Quick Start
+
+### Run GUI (Development)
+```bash
+pip install -r requirements_gui.txt
+python gui_mockup.py
+```
+
+### Run CLI (Legacy)
+```bash
+python main.py
+```
+
+### Build Windows Executable
+```bash
+pip install pyinstaller
+pyinstaller lid_downloader.spec
+```
+Executable will be in `dist/LID_Downloader/LID_Downloader.exe`
 
 ## Installation & Setup
 
@@ -55,7 +77,7 @@ lid-downloader/
 - Returns list of individual video URLs for batch processing
 
 ### `bitrate_enhancer.py`
-- **`enhancer(audio_file, audio_path)`**: Enhances audio bitrate to 192K using FFmpeg
+- **`enhancer(audio_file, audio_path)`**: Enhances audio bitrate to 320K using FFmpeg with libmp3lame codec
 - Uses local FFmpeg executable for portability
 - Automatically replaces original file with enhanced version
 
@@ -95,35 +117,68 @@ The application includes built-in protection against YouTube's bot detection:
 
 ## File Locations
 
-- **Downloads**: Saved to your system's Music folder (`~/Music`)
-- **Enhanced Audio**: Original files are replaced with 192K bitrate versions
+- **Downloads**: Default is your system's Music folder, customizable via GUI
+- **Enhanced Audio**: Original files are replaced with 320K bitrate versions
+- **Settings**: Stored in `~/.lid_downloader_config.json`
 - **Logs**: Console output shows download progress and any errors
 
-## Packaging for Distribution
+## Building for Distribution
 
-To create a standalone executable:
+### Windows Executable
+
+1. Install PyInstaller:
 ```bash
 pip install pyinstaller
-pyinstaller --onedir --windowed gui_mockup.py
 ```
 
-Make sure to include the `ffmpeg/` folder in your distribution package.
+2. Build using spec file:
+```bash
+pyinstaller lid_downloader.spec
+```
+
+3. Find executable in:
+```
+dist/LID_Downloader/LID_Downloader.exe
+```
+
+4. **Important**: Place `ffmpeg.exe` in the `ffmpeg/` folder before building, or include it in the distribution package.
+
+### Distribution Package Structure
+```
+LID_Downloader/
+├── LID_Downloader.exe
+├── ffmpeg/
+│   └── ffmpeg.exe
+└── [other DLLs and dependencies]
+```
 
 ## Troubleshooting
 
 ### FFmpeg Not Found
 - Ensure `ffmpeg.exe` is placed in the `ffmpeg/` folder
 - Audio will download without enhancement if FFmpeg is missing
+- Download FFmpeg from: https://ffmpeg.org/download.html
 
 ### Download Errors
 - Check internet connection
 - Verify YouTube URL is valid and accessible
 - Some videos may be region-restricted or unavailable
+- Try waiting a few minutes if rate-limited
 
 ### GUI Not Responding
 - Downloads run in background threads
-- Large playlists may take time due to anti-bot delays
+- Large playlists may take time due to anti-bot delays (10-40s between songs)
 - Check console output for detailed progress
+
+### Build Issues
+- Ensure all dependencies are installed: `pip install -r requirements_gui.txt`
+- Use the provided spec file: `pyinstaller lid_downloader.spec`
+- If missing modules, add to `hiddenimports` in spec file
+
+### Settings Not Saving
+- Check write permissions in home directory
+- Settings file location: `~/.lid_downloader_config.json`
+- Delete settings file to reset to defaults
 
 ## Dependencies
 
